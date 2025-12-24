@@ -5,3 +5,6 @@
 
 # editor
 .vscode/
+
+# misc
+*.txt
