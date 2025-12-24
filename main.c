@@ -77,6 +77,12 @@ int main(int argc, char *argv[]) {
 	assert(font);
 
 	SDL_Color textcolor = {255, 255, 255, 255};
+
+	SDL_StartTextInput();
+
+	char text_buffer[1024] = "";
+	BOOL text_changed = TRUE;
+
 	SDL_Surface *textsurface = NULL;
 	SDL_Texture *texttexture = NULL;	
 
@@ -84,8 +90,7 @@ int main(int argc, char *argv[]) {
 	BOOL move_down = FALSE;
 	BOOL move_right = FALSE;
 	BOOL move_left = FALSE; 
-	
-	char ascii = '\0';
+
 	BOOL done = FALSE;	
 
 	while (!done) {
@@ -94,6 +99,10 @@ int main(int argc, char *argv[]) {
 			if (event.type == SDL_QUIT) {
 				done = TRUE;
 				break;
+			}
+			if (event.type == SDL_TEXTINPUT) {
+				strcat(text_buffer, event.text.text);
+				text_changed = TRUE;
 			}
 			if (event.type == SDL_KEYDOWN) {
 				switch (event.key.keysym.sym){
@@ -112,9 +121,12 @@ int main(int argc, char *argv[]) {
 					case SDLK_LEFT:
 						move_left = TRUE;
 						break;
-					default:
-						ascii = (char) event.key.keysym.sym;
-						break;
+					case SDLK_BACKSPACE:
+						size_t len = strlen(text_buffer);
+						if (len > 0) {
+							text_buffer[len-1] = '\0';
+							text_changed = TRUE;
+						}
 				}
 			}
 			if (event.type == SDL_KEYUP) {
@@ -147,17 +159,25 @@ int main(int argc, char *argv[]) {
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, screen, NULL, NULL);
 
-		if (ascii != '\0') {
-			char msg[2] = { ascii, '\0' };
-			textsurface = TTF_RenderUTF8_Blended(font, msg, textcolor);
-			texttexture = SDL_CreateTextureFromSurface(renderer, textsurface);
+		if (text_changed) {
+			if (texttexture) SDL_DestroyTexture(texttexture);
+			if (textsurface) SDL_FreeSurface(textsurface);
 
-			SDL_Rect dstRect = {1, 1, textsurface->w, textsurface->h};
+			textsurface = TTF_RenderUTF8_Blended(
+				font,
+				text_buffer,
+				textcolor
+			);
+			texttexture = SDL_CreateTextureFromSurface(renderer, textsurface);
+			text_changed = FALSE;
+		}
+		if (texttexture && textsurface) {
+			SDL_Rect dstRect = {0, 0, textsurface->w, textsurface->h};
 			SDL_RenderCopy(renderer, texttexture, NULL, &dstRect);
 		}
+
 		SDL_RenderPresent(renderer);
 		SDL_Delay(50);
-
 	}
 	SDL_DestroyTexture(texttexture);
 	SDL_DestroyTexture(screen);	
