@@ -69,8 +69,6 @@ int main(int argc, char *argv[]) {
 	rect_t cursor = {0, 0, 10, 20};
 
 	u32 pixel_color = SDL_MapRGB(format, 128, 128, 128);
-	//cursor.x = (SCREEN_WIDTH - cursor.w)/2;
-	//cursor.y = (SCREEN_HEIGHT - cursor.h)/2;
 	FillRect(cursor, pixel_color, screen_pixels);
 
 	TTF_Font *font = TTF_OpenFont("fonts/JetBrainsMono-2.304/ttf/JetBrainsMonoNL-Regular.ttf", 14);
