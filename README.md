@@ -8,6 +8,6 @@ Mentalmap:
 keep that state.
 
 
-So, currently the software rendering for like the cursor is done manually using for loop to loop through the 
+So, currently the software rendering for like the cursor is done manually using a 'for' loop to loop through the 
 desired pixels to assign the required pixel colour individually, this provides better control but this can also be
 done using SDL magic function SDL_RenderFillRect() as well, will probably do that soon.
