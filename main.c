@@ -15,28 +15,6 @@ typedef Uint64 u64;
 typedef Sint32 s32;
 typedef Sint64 s64;
 
-typedef struct {
-	s32 x;
-	s32 y;
-	s32 w;
-	s32 h;
-} rect_t;
-
-void FillRect(rect_t rect, u32 pixel_color, u32 *screen_pixels) {
-	for (s32 row = 0; row < rect.h; row++) {
-		for (s32 col = 0; col < rect.w; col++) {
-			s32 vertical = row + rect.y;
-			s32 horizon = col + rect.x;
-
-			if (vertical < 0 || vertical >= SCREEN_HEIGHT ||
-				horizon  < 0 || horizon  >= SCREEN_WIDTH)
-    			continue;
-			
-			screen_pixels[(vertical)*SCREEN_WIDTH + horizon] = pixel_color;
-		}
-	}
-}
-
 int main(int argc, char *argv[]) {
 	(void)argc;
 	(void)argv;
@@ -52,42 +30,24 @@ int main(int argc, char *argv[]) {
 								);
 	SDL_Renderer *renderer = SDL_CreateRenderer(win, 0, SDL_RENDERER_SOFTWARE);
 	assert(renderer);
-	
-	SDL_PixelFormat *format = SDL_AllocFormat(SDL_PIXELFORMAT_RGB888);
-
-	SDL_Texture *screen = SDL_CreateTexture(renderer,
-										format->format,
-										SDL_TEXTUREACCESS_STREAMING,
-										SCREEN_WIDTH,
-										SCREEN_HEIGHT
-										);
-	assert(screen);
-
-	u32 *screen_pixels = (u32*) calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof(u32));
-	assert(screen_pixels);
-
-	rect_t cursor = {0, 0, 10, 20};
-
-	u32 pixel_color = SDL_MapRGB(format, 128, 128, 128);
-	FillRect(cursor, pixel_color, screen_pixels);
 
 	TTF_Font *font = TTF_OpenFont("fonts/JetBrainsMono-2.304/ttf/JetBrainsMonoNL-Regular.ttf", 14);
 	assert(font);
 
-	SDL_Color textcolor = {255, 255, 255, 255};
+    s32 minx, maxx, miny, maxy, advance;
+    TTF_GlyphMetrics(font, 'M', &minx, &maxx, &miny, &maxy, &advance);
 
+    s32 char_width  = advance;
+    s32 char_height = TTF_FontLineSkip(font);
+	
 	SDL_StartTextInput();
 
 	char text_buffer[1024] = "";
 	BOOL text_changed = TRUE;
+	s32 cursor_col = 0;
 
 	SDL_Surface *textsurface = NULL;
-	SDL_Texture *texttexture = NULL;	
-
-	BOOL move_up = FALSE;
-	BOOL move_down = FALSE;
-	BOOL move_right = FALSE;
-	BOOL move_left = FALSE; 
+	SDL_Texture *texttexture = NULL;
 
 	BOOL done = FALSE;	
 
@@ -100,6 +60,7 @@ int main(int argc, char *argv[]) {
 			}
 			if (event.type == SDL_TEXTINPUT) {
 				strcat(text_buffer, event.text.text);
+				cursor_col++;
 				text_changed = TRUE;
 			}
 			if (event.type == SDL_KEYDOWN) {
@@ -107,60 +68,32 @@ int main(int argc, char *argv[]) {
 					case SDLK_ESCAPE:
 						done = TRUE;
 						break;
-					case SDLK_DOWN:
-						move_down = TRUE;
-						break;
-					case SDLK_UP: 
-						move_up = TRUE;
-						break;
 					case SDLK_RIGHT:
-						move_right = TRUE; 
+						 if (cursor_col < (int)strlen(text_buffer))
+        					cursor_col++;
 						break;
 					case SDLK_LEFT:
-						move_left = TRUE;
+						if (cursor_col > 0)
+        					cursor_col--;
 						break;
 					case SDLK_BACKSPACE:
 						size_t len = strlen(text_buffer);
 						if (len > 0) {
 							text_buffer[len-1] = '\0';
+							cursor_col--;
 							text_changed = TRUE;
 						}
+					}
 				}
 			}
-			if (event.type == SDL_KEYUP) {
-				switch (event.key.keysym.sym){
-					case SDLK_DOWN:
-						move_down = FALSE;
-						break;
-					case SDLK_UP: 
-						move_up = FALSE;
-						break;
-					case SDLK_RIGHT:
-						move_right = FALSE; 
-						break;
-					case SDLK_LEFT:
-						move_left = FALSE;
-						break;
-				}
-			}
-		}
-		memset(screen_pixels, 0, SCREEN_WIDTH*SCREEN_HEIGHT*sizeof(u32));
-
-		if (move_up) cursor.y -= 5;
-		if (move_down) cursor.y += 5;
-		if (move_left) cursor.x -= 5;
-		if (move_right) cursor.x += 5;
-
-		FillRect(cursor, pixel_color, screen_pixels);	
-
-		SDL_UpdateTexture(screen, NULL, screen_pixels, SCREEN_WIDTH * sizeof(u32));
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 		SDL_RenderClear(renderer);
-		SDL_RenderCopy(renderer, screen, NULL, NULL);
 
+		SDL_Color textcolor = {255, 255, 255, 255};
 		if (text_changed) {
 			if (texttexture) SDL_DestroyTexture(texttexture);
 			if (textsurface) SDL_FreeSurface(textsurface);
-
+			
 			textsurface = TTF_RenderUTF8_Blended(
 				font,
 				text_buffer,
@@ -170,15 +103,24 @@ int main(int argc, char *argv[]) {
 			text_changed = FALSE;
 		}
 		if (texttexture && textsurface) {
-			SDL_Rect dstRect = {0, 0, textsurface->w, textsurface->h};
-			SDL_RenderCopy(renderer, texttexture, NULL, &dstRect);
+			SDL_Rect textRect = {0, 0, textsurface->w, textsurface->h};
+			SDL_RenderCopy(renderer, texttexture, NULL, &textRect);
 		}
+		
+		SDL_Rect cursor = {
+			0 + cursor_col * char_width,
+			0,
+			2,
+			char_height
+		};
+		SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+		SDL_RenderFillRect(renderer, &cursor);
 
 		SDL_RenderPresent(renderer);
 		SDL_Delay(50);
 	}
+	SDL_StopTextInput();
 	SDL_DestroyTexture(texttexture);
-	SDL_DestroyTexture(screen);	
 	SDL_FreeSurface(textsurface);	
 	SDL_DestroyRenderer(renderer);
 	TTF_Quit();  
